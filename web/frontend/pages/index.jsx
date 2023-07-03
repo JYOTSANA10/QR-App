@@ -14,14 +14,46 @@ import {
 } from "@shopify/polaris";
 import { TitleBar , Loading , useNavigate} from "@shopify/app-bridge-react";
 import { QRcodeForm } from "../components/QRcodeForm";
+import {QRCodeIndex} from "../components/QRCodeIndex";
 
 
 
 export default function HomePage() {
 
-  const isLoading =true;
+  const isLoading =false;
   const isRefetching = false;
-  const QRcodes=[];
+  const QRcodes = [
+    {
+      createdAt: "2022-06-13",
+      destination: "checkout",
+      title: "My first QR code",
+      id: 1,
+      discountCode: "SUMMERDISCOUNT",
+      product: {
+        title: "Faded t-shirt",
+      }
+    },
+    {
+      createdAt: "2022-06-13",
+      destination: "product",
+      title: "My second QR code",
+      id: 2,
+      discountCode: "WINTERDISCOUNT",
+      product: {
+        title: "Cozy parka",
+      }
+    },
+    {
+      createdAt: "2022-06-13",
+      destination: "product",
+      title: "QR code for deleted product",
+      id: 3,
+      product: {
+        title: "Deleted product",
+      }
+    },
+  ];
+  
 
   const navigate=useNavigate()
 
@@ -32,6 +64,9 @@ export default function HomePage() {
     </LegacyCard>
    ) : null;
 
+   const qrcodesMarkup= QRcodes?.length ?(
+      <QRCodeIndex QRcodes={QRcodes} loading={isRefetching}/>
+   ):null;
 
    const EmptyStateMarkup= !isLoading && !QRcodes?.length ? (
     <LegacyCard sectioned>
@@ -47,8 +82,8 @@ export default function HomePage() {
 
 
   return (
-    <Page narrowWidth>
-      {/* <TitleBar title="QR Codes"
+    <Page fullWidth>
+      <TitleBar title="QR Codes"
        primaryAction={{
         content: "Create QR code",
         onAction: () => navigate("/qrcodes/new"),
@@ -56,11 +91,12 @@ export default function HomePage() {
       <Layout>
         <Layout.Section>
         {loadingMarkup}
+        {qrcodesMarkup}
         {EmptyStateMarkup}
         </Layout.Section>
         
-      </Layout> */}
-      <QRcodeForm></QRcodeForm>
+      </Layout>
+      {/* <QRcodeForm></QRcodeForm> */}
     </Page>
   );
 }

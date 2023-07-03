@@ -1,2 +1,3 @@
-export { ProductsCard } from "./ProductsCard";
+export { QRcodeForm } from "./QRcodeForm";
+export { QRCodeIndex }  from "./QRCodeIndex"
 export * from "./providers";

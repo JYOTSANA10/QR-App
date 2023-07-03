@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@shopify/app": "3.47.2",
-    "@shopify/cli": "3.47.2"
+    "@shopify/cli": "3.47.2",
+    "mysql": "^2.18.1"
   },
   "author": "jyotsana-chauhan",
   "private": true,
