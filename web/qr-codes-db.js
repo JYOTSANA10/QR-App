@@ -70,7 +70,7 @@ export const QRcodeDb = {
          console.log("fetch",fetch);
       },
     
-      /* Initializes the connection with the app's sqlite3 database */
+      
       init: async function () {
     
         const hasQrCodesTable = await this.__hasQrCodesTable();
