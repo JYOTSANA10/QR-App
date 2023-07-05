@@ -15,10 +15,15 @@ import {
 import { TitleBar , Loading , useNavigate} from "@shopify/app-bridge-react";
 import { QRcodeForm } from "../components/QRcodeForm";
 import {QRCodeIndex} from "../components/QRCodeIndex";
+import { useAppQuery, useAuthenticatedFetch } from "../hooks";
 
 
 
 export default function HomePage() {
+
+
+  // const data = useAppQuery({url: "/api/products/count"});
+  // console.log("data",data);
 
   const isLoading =false;
   const isRefetching = false;

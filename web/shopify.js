@@ -5,6 +5,7 @@ import { restResources } from "@shopify/shopify-api/rest/admin/2023-04";
 
 const DB_PATH = `${process.cwd()}/database.sqlite`;
 
+
 // The transactions with Shopify will always be marked as test transactions, unless NODE_ENV is production.
 // See the ensureBilling helper to learn more about billing in this template.
 const billingConfig = {

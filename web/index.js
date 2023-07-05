@@ -7,6 +7,10 @@ import serveStatic from "serve-static";
 import shopify from "./shopify.js";
 import productCreator from "./product-creator.js";
 import GDPRWebhookHandlers from "./gdpr.js";
+import { QRcodeDb} from "./qr-codes-db.js"
+
+
+QRcodeDb.init()
 
 const PORT = parseInt(
   process.env.BACKEND_PORT || process.env.PORT || "3000",
@@ -39,11 +43,11 @@ app.use("/api/*", shopify.validateAuthenticatedSession());
 
 app.use(express.json());
 
-app.get("/api/products/count", async (_req, res) => {
-  const countData = await shopify.api.rest.Product.count({
-    session: res.locals.shopify.session,
-  });
-  res.status(200).send(countData);
+app.get("/api/products/create", async (_req, res) => {
+  const countData = await QRcodeDb.create();
+
+  // console.log("countData", countData);
+  // res.status(200).send(countData);
 });
 
 app.get("/api/products/create", async (_req, res) => {
