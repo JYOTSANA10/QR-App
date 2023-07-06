@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 import { join } from "path";
 import { readFileSync } from "fs";
 import express from "express";
@@ -7,10 +7,10 @@ import serveStatic from "serve-static";
 import shopify from "./shopify.js";
 import productCreator from "./product-creator.js";
 import GDPRWebhookHandlers from "./gdpr.js";
-import { QRcodeDb} from "./qr-codes-db.js"
+import { QRcodeDb } from "./qr-codes-db.js";
+import { parseQrCodeBody, getShopUrlFromSession , formatQrCodeResponse , getQrCodeOr404} from "./helpers/qr-codes.js";
 
-
-QRcodeDb.init()
+QRcodeDb.init();
 
 const PORT = parseInt(
   process.env.BACKEND_PORT || process.env.PORT || "3000",
@@ -43,9 +43,72 @@ app.use("/api/*", shopify.validateAuthenticatedSession());
 
 app.use(express.json());
 
-app.get("/api/products/create", async (_req, res) => {
-  const countData = await QRcodeDb.create();
+app.post("/api/qrcodes", async (req, res) => {
+  try {
+    console.log("req----------", req.body);
+    const id = await QRcodeDb.create({
+      ...(await parseQrCodeBody(req)),
 
+      shopDomain: await getShopUrlFromSession(req, res),
+    });
+    const response= await id.insertId;
+    console.log("id-------",response);
+      const data = await formatQrCodeResponse(req, res, [
+        await QRcodeDb.read(response),
+      ]);
+      console.log("data",data);
+      res.status(201).send(data[0]);
+
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+app.get("/api/qrcodes", async (req, res) => {
+  try {
+    const rawCodeData = await QRcodeDb.list(
+      await getShopUrlFromSession(req, res)
+    );
+
+    const response = await formatQrCodeResponse(req, res, rawCodeData);
+    res.status(200).send(response);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send(error.message);
+  }
+});
+
+
+app.get("/api/qrcodes/:id", async (req, res) => {
+  const qrcode = await getQrCodeOr404(req, res);
+
+  if (qrcode) {
+    const formattedQrCode = await formatQrCodeResponse(req, res, [qrcode]);
+    res.status(200).send(formattedQrCode[0]);
+  }
+});
+
+// app.post("/api/qrcodes", async (req, res) => {
+//   try {
+//       console.log("req----------",req.body);
+//       const id = await QRcodeDb.create(req)
+//       // ...(await parseQrCodeBody(req)),
+
+//       // shopDomain: res.locals.shopify.session,
+//     // });
+//   //   const response = await formatQrCodeResponse(req, res, [
+//   //     await QRcodesDB.read(id),
+//   //   ]);
+//   //   res.status(201).send(response[0]);
+
+//       // console.log(id);
+//   } catch (error) {
+//     res.status(500).send(error.message);
+//   }
+// });
+
+app.get("/api/products/create", async (_req, res) => {
+  // const countData = await QRcodeDb.create();
   // console.log("countData", countData);
   // res.status(200).send(countData);
 });

@@ -11,18 +11,49 @@ import {
   TextField,
   TextStyle,
 } from "@shopify/polaris";
+import { useAuthenticatedFetch } from "../hooks";
 import { useCallback, useState } from "react";
 import { useForm, useField, notEmptyString } from "@shopify/react-form";
+
 
 export const QRcodeForm = ({ QRCode: InitialQRCode }) => {
   const [QRCode, setQRCode] = useState(InitialQRCode);
   const [showResourcePicker, setShowResourcePicker] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(false);
+  const fetch = useAuthenticatedFetch();
 
-  const onSubmit = (body) => console.log("submit", body);
+  console.log("QRCode",QRCode);
+
+   async function submitProduct(body){
+    const parsedBody = body;
+    parsedBody.destination = parsedBody.destination;
+    const QRCodeId = QRCode?.id;
+    console.log("QRCodeId",parsedBody);
+    const url ="/api/qrcodes";
+
+    const response = await fetch(url, {
+      method:"POST",
+      body: JSON.stringify(parsedBody),
+      headers: { 
+      "Content-Type": "application/json" },
+    });
+
+    if(response.ok){
+
+    }
+
+    console.log("response",response);
+  }
+
+  const onSubmit = useCallback(
+    (body)=>{
+    ( 
+      submitProduct(body)
+    )
+  })
 
   const {
-    fields: { title, productId, variantId, handle, destination ,},
+    fields: { title, productId, variantId, handle, destination },
     dirty,
     reset,
     submitting,
@@ -31,16 +62,16 @@ export const QRcodeForm = ({ QRCode: InitialQRCode }) => {
   } = useForm({
     fields: {
       title: useField({
-        value: "Title",
+        value: QRCode?.title || "",
         validates: [notEmptyString("Please enter a title")],
       }),
       productId: useField({
-        value: "",
+        value: QRCode?.product?.id || "",
         validates: [notEmptyString("Please select a product")],
       }),
-      variantId: useField(""),
-      handle: useField(""),
-      destination: useField("product"),
+      variantId: useField(QRCode?.variantId || ""),
+      handle: useField(QRCode?.handle || ""),
+      destination: useField( QRCode?.destination ? [QRCode.destination] : ["product"]),
     },
     onSubmit,
   });

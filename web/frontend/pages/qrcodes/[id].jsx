@@ -1,19 +1,35 @@
 import { Page , Card ,Layout ,SkeletonBodyText} from "@shopify/polaris";
 import { QRcodeForm } from "../../components";
 import { TitleBar ,Loading} from "@shopify/app-bridge-react";
+import { useAppQuery } from "../../hooks";
+import { useParams } from "react-router-dom";
 
 export default function ManageCode(){
 
     const breadcrumbs= [{content:"QR Codes", url :"/"}]
 
-    const isLoading = false;
-    const isRefetching = false;
-    const QRCode = {
-      createdAt: "2022-06-13",
-      destination: "checkout",
-      title: "My first QR code",
-      product: {}
-    };
+    const { id } = useParams();
+
+    
+    const {
+      data: QRCode,
+      isLoading,
+      isRefetching,
+    } = useAppQuery({
+      url: `/api/qrcodes/${id}`,
+      reactQueryOptions: {
+        /* Disable refetching because the QRCodeForm component ignores changes to its props */
+        refetchOnReconnect: false,
+      },
+    });
+    // const isLoading = false;
+    // const isRefetching = false;
+    // const QRCode = {
+    //   createdAt: "2022-06-13",
+    //   destination: "checkout",
+    //   title: "My first QR code",
+    //   product: {}
+    // };
 
     if( isLoading || isRefetching){
         return(
@@ -59,7 +75,7 @@ export default function ManageCode(){
              primaryAction={null}
              breadcrumbs={breadcrumbs}
             />
-            <QRcodeForm/>
+            <QRcodeForm QRCode={QRCode}/>
         </Page>
     )
 }

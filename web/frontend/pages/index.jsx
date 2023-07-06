@@ -22,42 +22,51 @@ import { useAppQuery, useAuthenticatedFetch } from "../hooks";
 export default function HomePage() {
 
 
+  const {
+    data: QRCodes,
+    isLoading,
+    isRefetching,
+  } = useAppQuery({
+    url: "/api/qrcodes",
+  });
+
+
   // const data = useAppQuery({url: "/api/products/count"});
   // console.log("data",data);
 
-  const isLoading =false;
-  const isRefetching = false;
-  const QRcodes = [
-    {
-      createdAt: "2022-06-13",
-      destination: "checkout",
-      title: "My first QR code",
-      id: 1,
-      discountCode: "SUMMERDISCOUNT",
-      product: {
-        title: "Faded t-shirt",
-      }
-    },
-    {
-      createdAt: "2022-06-13",
-      destination: "product",
-      title: "My second QR code",
-      id: 2,
-      discountCode: "WINTERDISCOUNT",
-      product: {
-        title: "Cozy parka",
-      }
-    },
-    {
-      createdAt: "2022-06-13",
-      destination: "product",
-      title: "QR code for deleted product",
-      id: 3,
-      product: {
-        title: "Deleted product",
-      }
-    },
-  ];
+  // const isLoading =false;
+  // const isRefetching = false;
+  // const QRcodes = [
+  //   {
+  //     createdAt: "2022-06-13",
+  //     destination: "checkout",
+  //     title: "My first QR code",
+  //     id: 1,
+  //     discountCode: "SUMMERDISCOUNT",
+  //     product: {
+  //       title: "Faded t-shirt",
+  //     }
+  //   },
+  //   {
+  //     createdAt: "2022-06-13",
+  //     destination: "product",
+  //     title: "My second QR code",
+  //     id: 2,
+  //     discountCode: "WINTERDISCOUNT",
+  //     product: {
+  //       title: "Cozy parka",
+  //     }
+  //   },
+  //   {
+  //     createdAt: "2022-06-13",
+  //     destination: "product",
+  //     title: "QR code for deleted product",
+  //     id: 3,
+  //     product: {
+  //       title: "Deleted product",
+  //     }
+  //   },
+  // ];
   
 
   const navigate=useNavigate()
@@ -69,11 +78,11 @@ export default function HomePage() {
     </LegacyCard>
    ) : null;
 
-   const qrcodesMarkup= QRcodes?.length ?(
-      <QRCodeIndex QRcodes={QRcodes} loading={isRefetching}/>
+   const qrcodesMarkup= QRCodes?.length ?(
+      <QRCodeIndex QRcodes={QRCodes} loading={isRefetching}/>
    ):null;
 
-   const EmptyStateMarkup= !isLoading && !QRcodes?.length ? (
+   const EmptyStateMarkup= !isLoading && !QRCodes?.length ? (
     <LegacyCard sectioned>
       <EmptyState heading="Create QR code for Your Product" 
       	action={{
