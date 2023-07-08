@@ -1,4 +1,4 @@
-import { ContextualSaveBar, ResourcePicker } from "@shopify/app-bridge-react";
+import { ContextualSaveBar, ResourcePicker,  useNavigate } from "@shopify/app-bridge-react";
 import {
   Button,
   ChoiceList,
@@ -10,47 +10,75 @@ import {
   Stack,
   TextField,
   TextStyle,
+  Card,
+  Thumbnail
 } from "@shopify/polaris";
-import { useAuthenticatedFetch } from "../hooks";
+import { ImageMajor, AlertMinor } from "@shopify/polaris-icons";
+
+import { useAppQuery, useAuthenticatedFetch } from "../hooks";
 import { useCallback, useState } from "react";
 import { useForm, useField, notEmptyString } from "@shopify/react-form";
-
 
 export const QRcodeForm = ({ QRCode: InitialQRCode }) => {
   const [QRCode, setQRCode] = useState(InitialQRCode);
   const [showResourcePicker, setShowResourcePicker] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(QRCode?.product);
   const fetch = useAuthenticatedFetch();
+  const navigate = useNavigate();
 
-  console.log("QRCode",QRCode);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const deleteQRCode = useCallback(async () => {
+    reset();
+    /* The isDeleting state disables the download button and the delete QR code button to show the user that an action is in progress */
+    setIsDeleting(true);
+    const response = await fetch(`/api/qrcodes/${QRCode.id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    });
+  
+    if (response.ok) {
+      navigate(`/`);
+    }
+  }, [QRCode]);
 
-   async function submitProduct(body){
+  async function submitProduct(body) {
     const parsedBody = body;
     parsedBody.destination = parsedBody.destination;
     const QRCodeId = QRCode?.id;
-    console.log("QRCodeId",parsedBody);
-    const url ="/api/qrcodes";
+    console.log("QRCodeId", parsedBody);
+
+    const url = QRCodeId ? `/api/qrcodes/${QRCodeId}` : "/api/qrcodes";
+    const method = QRCodeId ? "PATCH" : "POST";
 
     const response = await fetch(url, {
-      method:"POST",
+      method,
       body: JSON.stringify(parsedBody),
-      headers: { 
-      "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
 
-    if(response.ok){
+    if (response.ok) {
+      makeClean();
+      const QRCode = await response.json();
 
+      if (!QRCodeId) {
+        navigate(`/qrcodes/${QRCode.id}`);
+      } else {
+        setQRCode(QRCode);
+      }
     }
 
-    console.log("response",response);
+    console.log("response", response);
   }
 
   const onSubmit = useCallback(
-    (body)=>{
-    ( 
-      submitProduct(body)
-    )
-  })
+    (body) => {
+      submitProduct(body);
+      return { status: "success" };
+    },
+    [QRCode, setQRCode]
+  );
 
   const {
     fields: { title, productId, variantId, handle, destination },
@@ -69,9 +97,11 @@ export const QRcodeForm = ({ QRCode: InitialQRCode }) => {
         value: QRCode?.product?.id || "",
         validates: [notEmptyString("Please select a product")],
       }),
-      variantId: useField(QRCode?.variantId || ""),
+      variantId: useField(QRCode?.variantId || null),
       handle: useField(QRCode?.handle || ""),
-      destination: useField( QRCode?.destination ? [QRCode.destination] : ["product"]),
+      destination: useField(
+        QRCode?.destination ? [QRCode.destination] : ["product"]
+      ),
     },
     onSubmit,
   });
@@ -98,21 +128,35 @@ export const QRcodeForm = ({ QRCode: InitialQRCode }) => {
     ? new URL(`/qrcodes/${QRCode.id}/image`, location.toString()).toString()
     : null;
 
-  const shopData = null;
+    const {
+      data: shopData,
+      isLoading: isLoadingShopData,
+      isError: shopDataError,
+    } = useAppQuery({ url: "/api/shop-data" });
 
   const goToDestination = useCallback(() => {
-    console.log("shopDatagoto", shopData);
+    console.log("shopDatagoto", variantId);
+    if (!selectedProduct) return;
     const Data = {
       shopUrl: shopData?.shop.url,
       productHandle: handle.value || selectedProduct.handle,
+      variantId: variantId.value ,
     };
 
-    const TargetUrl = true ? ProductView(Data) : null;
+    const TargetUrl = destination.value[0] === "product"
+      ? ProductView(Data)
+      : productCheckoutURL(Data);
 
     console.log("TargetUrl", TargetUrl);
 
     window.open(TargetUrl, "_blank", "noreferrer,noopener");
-  }, [QRCode, selectedProduct, destination, handle, shopData]);
+  }, [QRCode, selectedProduct, destination, handle, shopData , variantId]);
+
+
+  const imageSrc = selectedProduct?.images?.edges?.[0]?.node?.url;
+  const originalImageSrc = selectedProduct?.images?.[0]?.originalSrc;
+  const altText =
+    selectedProduct?.images?.[0]?.altText || selectedProduct?.title;
 
   return (
     <Stack vertical>
@@ -155,7 +199,7 @@ export const QRcodeForm = ({ QRCode: InitialQRCode }) => {
                   },
                 ]}
               >
-                <LegacyCard.Section>
+                <Card.Section>
                   {showResourcePicker && (
                     <ResourcePicker
                       resourceType="Product"
@@ -167,19 +211,39 @@ export const QRcodeForm = ({ QRCode: InitialQRCode }) => {
                     />
                   )}
                   {productId.value ? (
-                    <Stack>
+                    <Stack alignment="center">
+                      {imageSrc || originalImageSrc ? (
+                        <Thumbnail
+                          source={imageSrc || originalImageSrc}
+                          alt={altText}
+                        />
+                      ) : (
+                        <Thumbnail
+                          source={ImageMajor}
+                          color="base"
+                          size="small"
+                        />
+                      )}
                       <TextStyle variation="strong">
                         {selectedProduct.title}
                       </TextStyle>
                     </Stack>
                   ) : (
-                    <Stack>
+                    <Stack vertical spacing="extraTight">
                       <Button onClick={toggleResourcePicker}>
-                        Select Product
+                        Select product
                       </Button>
+                      {productId.error && (
+                        <Stack spacing="tight">
+                          <Icon source={AlertMinor} color="critical" />
+                          <TextStyle variation="negative">
+                            {productId.error}
+                          </TextStyle>
+                        </Stack>
+                      )}
                     </Stack>
                   )}
-                </LegacyCard.Section>
+                </Card.Section>
                 <LegacyCard.Section title="Scan Link">
                   <ChoiceList
                     choices={[
@@ -198,41 +262,71 @@ export const QRcodeForm = ({ QRCode: InitialQRCode }) => {
           </Form>
         </Layout.Section>
         <Layout.Section secondary>
-          <LegacyCard sectioned title="QR Code">
-            {true ? (
-              <EmptyState
-                imageContained={true}
-                image="/home/jyotsana-chauhan/qr-app/web/frontend/assets/home-trophy.png"
-              >
-                <p>Image</p>
-              </EmptyState>
+          <Card sectioned title="QR code">
+            {QRCode ? (
+              <EmptyState imageContained={true} image={QRCodeURL} />
             ) : (
               <EmptyState>
-                <p>Your QR code will appear here</p>
+                <p>Your QR code will appear here after you save.</p>
               </EmptyState>
             )}
             <Stack vertical>
-              <Button primary download fullWidth url={QRCodeURL}>
+              <Button
+                fullWidth
+                primary
+                download
+                url={QRCodeURL}
+                disabled={!QRCode || isDeleting}
+              >
                 Download
               </Button>
-              <Button fullWidth onClick={goToDestination}>
-                Go To Destination
+              <Button
+                fullWidth
+                onClick={goToDestination }
+                disabled={!selectedProduct || isLoadingShopData}
+              >
+                Go to destination
               </Button>
             </Stack>
-          </LegacyCard>
+          </Card>
         </Layout.Section>
-        <Layout.Section></Layout.Section>
+        <Layout.Section>
+          {QRCode?.id && (
+            <Button
+              outline
+              destructive
+              onClick={deleteQRCode}
+              loading={isDeleting}
+            >
+              Delete QR code
+            </Button>
+          )}
+        </Layout.Section>
       </Layout>
     </Stack>
   );
-
-  function ProductView({ shopUrl, productHandle }) {
-    console.log("shopUrl", shopUrl);
-    const url = new URL(shopUrl);
-    const producturl = `/products/${productHandle}`;
-
-    url.pathname = producturl;
-
-    return url.toString();
-  }
 };
+
+function ProductView({ shopUrl, productHandle }) {
+  console.log("shopUrl", shopUrl);
+  const url = new URL(shopUrl);
+  const producturl = `/products/${productHandle}`;
+
+  url.pathname = producturl;
+
+  return url.toString();
+}
+
+function productCheckoutURL({ shopUrl, variantId, quantity = 1 }) {
+  const url = new URL(shopUrl);
+  const id = variantId.replace(
+    /gid:\/\/shopify\/ProductVariant\/([0-9]+)/,
+    "$1"
+  );
+
+  url.pathname = `/cart/${id}:${quantity}`;
+
+  /* Builds a URL to a checkout that contains the selected product with a discount code applied */
+
+  return url.toString();
+}

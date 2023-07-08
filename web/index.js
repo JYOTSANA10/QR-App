@@ -9,8 +9,11 @@ import productCreator from "./product-creator.js";
 import GDPRWebhookHandlers from "./gdpr.js";
 import { QRcodeDb } from "./qr-codes-db.js";
 import { parseQrCodeBody, getShopUrlFromSession , formatQrCodeResponse , getQrCodeOr404} from "./helpers/qr-codes.js";
+import applyQrCodePublicEndpoints from "./middleware/qr-code-public.js";
 
 QRcodeDb.init();
+
+
 
 const PORT = parseInt(
   process.env.BACKEND_PORT || process.env.PORT || "3000",
@@ -23,6 +26,7 @@ const STATIC_PATH =
     : `${process.cwd()}/frontend/`;
 
 const app = express();
+applyQrCodePublicEndpoints(app);
 
 // Set up Shopify authentication and webhook handling
 app.get(shopify.config.auth.path, shopify.auth.begin());
@@ -42,6 +46,75 @@ app.post(
 app.use("/api/*", shopify.validateAuthenticatedSession());
 
 app.use(express.json());
+
+const SHOP_DATA_QUERY = `
+  query shopData($first: Int!) {
+    shop {
+      url
+    }
+    codeDiscountNodes(first: $first) {
+      edges {
+        node {
+          id
+          codeDiscount {
+            ... on DiscountCodeBasic {
+              codes(first: 1) {
+                edges {
+                  node {
+                    code
+                  }
+                }
+              }
+            }
+            ... on DiscountCodeBxgy {
+              codes(first: 1) {
+                edges {
+                  node {
+                    code
+                  }
+                }
+              }
+            }
+            ... on DiscountCodeFreeShipping {
+              codes(first: 1) {
+                edges {
+                  node {
+                    code
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+app.get("/api/shop-data", async (req, res) => {
+
+
+  // const kdsdk = await getUrlSession(req, res)
+  // console.log("res-------->",kdsdk);
+
+  console.log("res-------->",res.locals.shopify.session);
+
+   const client = new shopify.api.clients.Graphql({
+     session: res.locals.shopify.session,
+   });
+
+   /* Fetch shop data, including all available discounts to list in the QR code form */
+   const shopData = await client.query({
+     data: {
+       query: SHOP_DATA_QUERY,
+       variables: {
+         first: 25,
+       },
+     },
+   });
+
+   console.log("shopData",shopData.body);
+   res.send(shopData.body.data);
+ });
 
 app.post("/api/qrcodes", async (req, res) => {
   try {
@@ -87,6 +160,34 @@ app.get("/api/qrcodes/:id", async (req, res) => {
     res.status(200).send(formattedQrCode[0]);
   }
 });
+
+app.patch("/api/qrcodes/:id", async (req, res) => {
+  const qrcode = await getQrCodeOr404(req, res);
+
+  if (qrcode) {
+    try {
+      await QRcodeDb.update(req.params.id, await parseQrCodeBody(req));
+      const response = await formatQrCodeResponse(req, res, [
+        await QRcodeDb.read(req.params.id),
+      ]);
+      res.status(200).send(response[0]);
+    } catch (error) {
+      res.status(500).send(error.message);
+    }
+  }
+});
+
+
+app.delete("/api/qrcodes/:id", async (req, res) => {
+  const qrcode = await getQrCodeOr404(req, res);
+
+  if (qrcode) {
+    await QRcodeDb.delete(req.params.id);
+    res.status(200).send();
+  }
+});
+
+
 
 // app.post("/api/qrcodes", async (req, res) => {
 //   try {

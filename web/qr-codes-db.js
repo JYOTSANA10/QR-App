@@ -1,5 +1,5 @@
 import  mysql  from "mysql";
-
+import shopify from './shopify.js'
 
 const connection= mysql.createConnection({
     host: "localhost",
@@ -177,6 +177,16 @@ export const QRcodeDb = {
         return this.__addImageUrl(rows[0]);
       },
 
+      delete: async function (id) {
+        await this.ready;
+        const query = `
+          DELETE FROM QrCodesTable
+          WHERE id = ?;
+        `;
+        await this.__query(query, [id]);
+        return true;
+      },
+
       __addImageUrl: function (qrcode) {
         try {
           qrcode.imageUrl = this.__generateQrcodeImageUrl(qrcode);
@@ -200,7 +210,133 @@ export const QRcodeDb = {
         `;
     
         const results = await this.__query(query, [shopDomain]);
+        console.log("results",results);
     
         return results.map((qrcode) => this.__addImageUrl(qrcode));
       },
+
+      update: async function (
+        id,
+        {
+          title,
+          productId,
+          variantId,
+          handle,
+          destination,
+        }
+      ) {
+        await this.ready;
+    
+        const query = `
+          UPDATE QrCodesTable
+          SET
+            title = ?,
+            productId = ?,
+            variantId = ?,
+            handle = ?,
+            destination = ?
+          WHERE
+            id = ?;
+        `;
+    
+        await this.__query(query, [
+          title,
+          productId,
+          variantId,
+          handle,
+          destination,
+          id,
+        ]);
+        return true;
+      },
+
+
+      generateQrcodeDestinationUrl: function (qrcode) {
+        return `${shopify.api.config.hostScheme}://${shopify.api.config.hostName}/qrcodes/${qrcode.id}/scan`;
+      },
+    
+      handleCodeScan: async function (qrcode) {
+    
+        await this.__increaseScanCount(qrcode);
+    
+        const url = new URL(qrcode.shopDomain);
+        switch (qrcode.destination) {
+    
+          case "product":
+            return this.__goToProductView(url, qrcode);
+    
+          case "checkout":
+            return this.__goToProductCheckout(url, qrcode);
+    
+          default:
+            throw `Unrecognized destination "${qrcode.destination}"`;
+        }
+      },
+
+
+      __addImageUrl: function (qrcode) {
+        try {
+        console.log("addImageUrl-------------");
+
+          qrcode.imageUrl = this.__generateQrcodeImageUrl(qrcode);
+        } catch (err) {
+          console.error(err);
+        }
+        console.log("qrcode-------------",qrcode);
+        return qrcode;
+      },
+    
+      __generateQrcodeImageUrl: function (qrcode) {
+        return `${shopify.api.config.hostScheme}://${shopify.api.config.hostName}/qrcodes/${qrcode.id}/image`;
+      },
+    
+      __increaseScanCount: async function (qrcode) {
+        const query = `
+          UPDATE QrCodesTable
+          SET scans = scans + 1
+          WHERE id = ?
+        `;
+        await this.__query(query, [qrcode.id]);
+      },
+    
+      __goToProductView: function (url, qrcode) {
+        return productViewURL({
+          host: url.toString(),
+          productHandle: qrcode.handle,
+        });
+      },
+    
+      __goToProductCheckout: function (url, qrcode) {
+        return productCheckoutURL({
+          host: url.toString(),
+          variantId: qrcode.variantId,
+          quantity: 1,
+        });
+      },
+}
+
+
+
+function productViewURL({ host, productHandle }) {
+  const url = new URL(host);
+  const productPath = `/products/${productHandle}`;
+
+ 
+    url.pathname = productPath;
+
+  return url.toString();
+}
+
+function productCheckoutURL({ host, variantId, quantity = 1 }) {
+  const url = new URL(host);
+  const id = variantId.replace(
+    /gid:\/\/shopify\/ProductVariant\/([0-9]+)/,
+    "$1"
+  );
+
+  url.pathname = `/cart/${id}:${quantity}`;
+
+ 
+
+  return url.toString();
 }

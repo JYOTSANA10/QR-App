@@ -16,9 +16,6 @@ const QR_CODE_ADMIN_QUERY = `
           }
         }
       }
-      ... on ProductVariant {
-        id
-      }
       
     }
   }
@@ -46,10 +43,17 @@ export async function getQrCodeOr404(req, res, checkDomain = true) {
   }
  
 export async function getShopUrlFromSession(req, res) {
-    console.log("url-------->",res.locals.shopify.session.shop);
     return `https://${res.locals.shopify.session.shop}`;
 
   }
+
+
+  export async function getUrlSession(req, res) {
+    console.log("url-------->",res.locals.shopify.session);
+    return res.locals.shopify.session;
+
+  }
+
 
 
   export async function parseQrCodeBody(req, res) {
@@ -67,16 +71,18 @@ export async function getShopUrlFromSession(req, res) {
 
   export async function formatQrCodeResponse(req, res, rawCodeData) {
     const ids = [];
-  
     /* Get every product, variant and discountID that was queried from the database */
     rawCodeData.forEach(({ productId, variantId }) => {
       ids.push(productId);
       ids.push(variantId);
     });
   
+    console.log("ids",ids);
     const client = new shopify.api.clients.Graphql({
       session: res.locals.shopify.session,
     });
+  console.log("formatQrCodeResponse",client);
+
   
     const adminData = await client.query({
       data: {
